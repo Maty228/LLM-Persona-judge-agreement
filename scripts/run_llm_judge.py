@@ -25,15 +25,14 @@ def build_judge_prompt(
     persona: str,
     dialogue: str,
 ) -> str:
-    return f"""You are evaluating whether a dialogue is consistent with a persona.
+    return f"""Determine whether SELF's dialogue contradicts SELF's persona.
 
-The persona describes the speaker labelled SELF.
+A contradiction exists if at least one persona statement conflicts with something SELF states or clearly implies in the dialogue.
 
-A contradiction exists if at least one statement in the persona cannot be true at the same time as something stated or clearly implied by SELF in the dialogue.
-
-A persona statement does not need to be mentioned in the dialogue. Missing evidence for a persona statement is not a contradiction.
-
-Statements made by PARTNER are not claims made by SELF.
+Important:
+- Only one conflicting persona statement is enough for CONTRADICTION.
+- A persona statement that is not discussed in the dialogue is not a contradiction.
+- Statements made by PARTNER are not statements about SELF.
 
 Persona of SELF:
 {persona}
@@ -41,11 +40,7 @@ Persona of SELF:
 Dialogue:
 {dialogue}
 
-Does the dialogue contradict any statement in SELF's persona?
-
-Answer with exactly one label:
-CONTRADICTION
-NO_CONTRADICTION"""
+Return exactly one of the following labels and nothing else: CONTRADICTION or NO_CONTRADICTION."""
 
 
 def parse_judge_output(
@@ -53,8 +48,13 @@ def parse_judge_output(
 ) -> tuple[str | None, int | None]:
     text = output.strip().upper()
 
-    if text in VALID_LABELS:
-        return text, VALID_LABELS[text]
+    first_line = text.splitlines()[0].strip()
+
+    if first_line == "CONTRADICTION":
+        return "CONTRADICTION", 1
+
+    if first_line == "NO_CONTRADICTION":
+        return "NO_CONTRADICTION", 0
 
     return None, None
 
