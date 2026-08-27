@@ -395,27 +395,58 @@ def main():
     print("------------------")
 
     print(
-        "Valid outputs:",
+        f"Rows: {len(results):,}"
+    )
+
+    print(
+        f"Pairs: {results['pair_id'].nunique():,}"
+    )
+
+    print(
+        "Valid output rate:",
         f"{results['valid_output'].mean():.1%}",
+    )
+
+    print("\nRaw outputs:")
+    print(
+        results[
+            "raw_output"
+        ].value_counts(
+            dropna=False
+        )
+    )
+
+    print("\nParsed labels:")
+    print(
+        results[
+            "parsed_label"
+        ].value_counts(
+            dropna=False
+        )
+    )
+
+    print("\nPredictions by variant:")
+    print(
+        pd.crosstab(
+            results["variant"],
+            results["parsed_label"],
+            dropna=False,
+        )
     )
 
     valid = results[
         results["valid_output"]
-    ]
+    ].copy()
 
     if not valid.empty:
         print(
-            "Contradiction rate:",
+            "\nContradiction rate:",
             f"{valid['parsed_label_binary'].mean():.1%}",
         )
 
         agreement = (
-            valid[
-                "parsed_label_binary"
-            ]
-            == valid[
-                "expected_label_binary"
-            ]
+                valid["parsed_label_binary"]
+                == valid["expected_label_binary"]
         ).mean()
 
         print(
