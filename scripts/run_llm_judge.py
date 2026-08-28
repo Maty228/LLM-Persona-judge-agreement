@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 import pandas as pd
@@ -11,52 +10,15 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
 )
+from huggingface_hub import model_info
+
+from judge_config import (
+    PROMPT_ID,
+    build_judge_prompt,
+    parse_judge_output,
+)
 
 
-PROMPT_ID = "full_persona_v1"
-
-VALID_LABELS = {
-    "CONTRADICTION": 1,
-    "NO_CONTRADICTION": 0,
-}
-
-
-def build_judge_prompt(
-    persona: str,
-    dialogue: str,
-) -> str:
-    return f"""Determine whether SELF's dialogue contradicts SELF's persona.
-
-A contradiction exists if at least one persona statement conflicts with something SELF states or clearly implies in the dialogue.
-
-Important:
-- Only one conflicting persona statement is enough for CONTRADICTION.
-- A persona statement that is not discussed in the dialogue is not a contradiction.
-- Statements made by PARTNER are not statements about SELF.
-
-Persona of SELF:
-{persona}
-
-Dialogue:
-{dialogue}
-
-Return exactly one of the following labels and nothing else: CONTRADICTION or NO_CONTRADICTION."""
-
-
-def parse_judge_output(
-    output: str,
-) -> tuple[str | None, int | None]:
-    text = output.strip().upper()
-
-    first_line = text.splitlines()[0].strip()
-
-    if first_line == "CONTRADICTION":
-        return "CONTRADICTION", 1
-
-    if first_line == "NO_CONTRADICTION":
-        return "NO_CONTRADICTION", 0
-
-    return None, None
 
 
 def select_pilot(
@@ -130,12 +92,21 @@ def run_inference(
     model_id: str,
     batch_size: int,
 ) -> pd.DataFrame:
-    print(f"Loading tokenizer: {model_name}")
+    model_revision = model_info(
+        model_name
+    ).sha
 
-    tokenizer = (
-        AutoTokenizer.from_pretrained(
-            model_name
-        )
+    print(
+        f"Model revision: {model_revision}"
+    )
+
+    print(
+        f"Loading tokenizer: {model_name}"
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name,
+        revision=model_revision,
     )
 
     tokenizer.padding_side = "left"
@@ -145,15 +116,15 @@ def run_inference(
             tokenizer.eos_token
         )
 
-    print(f"Loading model: {model_name}")
+    print(
+        f"Loading model: {model_name}"
+    )
 
-    model = (
-        AutoModelForCausalLM
-        .from_pretrained(
-            model_name,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-        )
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        revision=model_revision,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
     )
 
     model.eval()
@@ -204,7 +175,7 @@ def run_inference(
             chat_texts,
             return_tensors="pt",
             padding=True,
-            truncation=True,
+            truncation=False,
         )
 
         inputs = {
@@ -222,14 +193,9 @@ def run_inference(
         with torch.inference_mode():
             generated = model.generate(
                 **inputs,
-                max_new_tokens=12,
+                max_new_tokens=16,
                 do_sample=False,
-                pad_token_id=(
-                    tokenizer.pad_token_id
-                ),
-                eos_token_id=(
-                    tokenizer.eos_token_id
-                ),
+                pad_token_id=tokenizer.pad_token_id,
             )
 
         generated_tokens = (
@@ -273,6 +239,7 @@ def run_inference(
 
                     "model_id": model_id,
                     "model_name": model_name,
+                    "model_revision": model_revision,
                     "prompt_id": PROMPT_ID,
 
                     "raw_output": (
