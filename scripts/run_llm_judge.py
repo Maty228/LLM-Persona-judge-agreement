@@ -176,6 +176,7 @@ def run_inference(
             return_tensors="pt",
             padding=True,
             truncation=False,
+            add_special_tokens=False,
         )
 
         inputs = {
