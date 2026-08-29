@@ -1,0 +1,9 @@
+torch
+transformers
+accelerate
+pandas
+pyarrow
+tqdm
+huggingface_hub
+sentencepiece
+safetensors
