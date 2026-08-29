@@ -13,6 +13,7 @@ from transformers import (
 from huggingface_hub import model_info
 
 from judge_config import (
+    AVAILABLE_PROMPT_IDS,
     PROMPT_ID,
     build_judge_prompt,
     parse_judge_output,
@@ -91,6 +92,7 @@ def run_inference(
     model_name: str,
     model_id: str,
     batch_size: int,
+    prompt_id: str = PROMPT_ID,
 ) -> pd.DataFrame:
     model_revision = model_info(
         model_name
@@ -158,6 +160,7 @@ def run_inference(
             build_judge_prompt(
                 persona=row.persona_text,
                 dialogue=row.dialogue_text,
+                prompt_id=prompt_id,
             )
             for row in batch.itertuples()
         ]
@@ -241,7 +244,7 @@ def run_inference(
                     "model_id": model_id,
                     "model_name": model_name,
                     "model_revision": model_revision,
-                    "prompt_id": PROMPT_ID,
+                    "prompt_id": prompt_id,
 
                     "raw_output": (
                         raw_output
@@ -297,6 +300,12 @@ def main():
     )
 
     parser.add_argument(
+        "--prompt-id",
+        choices=AVAILABLE_PROMPT_IDS,
+        default=PROMPT_ID,
+    )
+
+    parser.add_argument(
         "--pilot-pairs",
         type=int,
         default=None,
@@ -341,11 +350,16 @@ def main():
         f"{df['pair_id'].nunique():,}"
     )
 
+    print(
+        f"Prompt ID: {args.prompt_id}"
+    )
+
     results = run_inference(
         df=df,
         model_name=args.model_name,
         model_id=args.model_id,
         batch_size=args.batch_size,
+        prompt_id=args.prompt_id,
     )
 
     args.output.parent.mkdir(
