@@ -153,10 +153,20 @@ is recorded with the resulting judgments.
 
 ## 3. Statistical methods
 
-### 3.1 Contradiction rates and inter-judge agreement
+### 3.1 Contradiction rates, expected-label accuracy, and inter-judge agreement
 
 The first descriptive quantity is each judge's **contradiction rate**, defined
 as the proportion of examples labeled `CONTRADICTION`.
+
+Because the experimental construction also provides an expected relation for
+each example, I additionally calculate **accuracy with respect to the expected
+labels**. Original examples are expected to be `NO_CONTRADICTION`, while
+augmented examples are expected to be `CONTRADICTION`.
+
+Accuracy is reported overall and separately for original and augmented
+examples. These expected labels are derived automatically from the dataset
+construction rather than from human annotation, so the resulting values should
+not be interpreted as accuracy against human-verified gold-standard labels.
 
 This is distinct from agreement. Two judges may agree frequently simply because
 both strongly prefer the same majority label.
@@ -328,6 +338,32 @@ Mistral is therefore the most contradiction-prone judge, followed by Qwen,
 whereas Phi and Llama are substantially more conservative. All four judges
 predict contradictions more frequently for augmented than for original
 personas.
+
+The automatically derived expected labels also allow the predictions to be
+compared with the relation intended by the dataset construction.
+
+| Judge | Overall accuracy | Original accuracy | Augmented accuracy |
+|---|---:|---:|---:|
+| Qwen3-4B | 67.8% | 81.9% | 53.6% |
+| Phi-4-mini-instruct | 62.1% | 98.9% | 25.3% |
+| Llama-3.2-3B-Instruct | 57.2% | 95.0% | 19.4% |
+| Mistral-7B-Instruct-v0.3 | 68.0% | 62.5% | 73.4% |
+
+Overall accuracy ranges from 57.2% for Llama to approximately 68.0% for
+Mistral. However, these overall values hide very different behaviour on the
+two input variants.
+
+Phi and Llama classify almost all original examples according to the expected
+label, with accuracies of 98.9% and 95.0%, but identify only 25.3% and 19.4%
+of augmented examples as contradictions. Mistral shows the opposite pattern:
+its augmented accuracy is 73.4%, the highest of the four judges, while its
+original accuracy is only 62.5%. Qwen is more balanced, with 81.9% accuracy on
+original and 53.6% on augmented examples.
+
+The similarity of some overall accuracy values therefore hides substantial
+differences in the judges' label distributions. As noted above, these values
+measure agreement with automatically derived expected labels rather than with
+human-verified gold annotations.
 
 Pairwise raw agreement across all examples ranges from 54.6% for
 Llama--Mistral to 85.4% for Phi--Llama. Cohen's kappa ranges only from 0.162 to
@@ -530,6 +566,15 @@ interpreting raw agreement: two conservative judges can agree frequently
 because both overwhelmingly choose `NO_CONTRADICTION`, even though their
 chance-corrected agreement is much weaker.
 
+The expected-label accuracies illustrate the same issue from another
+perspective. Qwen and Mistral achieve similar overall accuracy, approximately
+68%, despite having substantially different prediction distributions.
+Similarly, Phi performs almost perfectly on original examples but detects only
+about one quarter of the contradiction-oriented augmented examples. Overall
+accuracy should therefore be interpreted together with class-specific
+performance and contradiction rates rather than as a complete measure of judge
+quality.
+
 The permutation analysis confirms that these differences are systematic within
 the experimental sample. The result is practically important because the
 measured consistency of exactly the same dialogue can depend substantially on
@@ -606,6 +651,10 @@ contradiction detection.
 The judges exhibit clearly different contradiction rates and only
 limited chance-corrected agreement. A permutation test provides strong evidence
 that the observed differences in contradiction rates are systematic.
+
+Accuracy relative to the automatically derived expected labels ranges from
+57.2% to 68.0% overall, but the original and augmented subsets reveal much
+larger differences between judge behaviour.
 
 Contradiction-oriented persona augmentation produces a clear paired effect. On
 average, augmented personas receive 1.10 additional `CONTRADICTION` votes out
